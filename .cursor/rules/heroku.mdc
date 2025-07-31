@@ -1,0 +1,4 @@
+---
+description: The final application that we are building is going to be run in Heroku. When doing development keep this in mind and look for the solutions that are Heroku compatible
+alwaysApply: false
+---

@@ -1,0 +1,32 @@
+{
+  "name": "hubspot-onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:setup": "node database/setup.js",
+    "db:reset": "node database/setup.js"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.0.18",
+    "@juhomat/hexagonal-ai-framework": "^0.1.1",
+    "@langchain/textsplitters": "^0.1.0",
+    "autoprefixer": "^10.4.16",
+    "dotenv": "^16.3.0",
+    "next": "^15.4.5",
+    "pg": "^8.16.3",
+    "postcss": "^8.4.31",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "^5.3.2"
+  }
+}
