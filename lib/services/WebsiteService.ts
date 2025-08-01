@@ -1,6 +1,6 @@
 import { ApplicationFramework } from '@juhomat/hexagonal-ai-framework';
 
-// Website interfaces
+// Website interfaces - Enhanced with crawling capabilities
 export interface Website {
   id: string;
   project_id: string;
@@ -8,17 +8,58 @@ export interface Website {
   name?: string;
   description?: string;
   status: WebsiteStatus;
-  indexing_status: IndexingStatus;
-  indexed_at?: string;
-  indexing_error?: string;
-  content_chunks: number;
-  last_crawled_at?: string;
+  // New crawling fields
+  crawl_status: CrawlStatus;
+  total_pages_discovered: number;
+  pages_crawled: number;
+  pages_failed: number;
+  max_pages: number;
+  max_depth: number;
+  started_at?: Date;
+  completed_at?: Date;
   created_date: Date;
   updated_at: Date;
 }
 
 export type WebsiteStatus = 'active' | 'inactive' | 'pending_review';
-export type IndexingStatus = 'not_indexed' | 'indexing' | 'indexed' | 'failed';
+export type CrawlStatus = 'pending' | 'crawling' | 'completed' | 'failed' | 'paused';
+export type PageStatus = 'pending' | 'crawled' | 'failed' | 'processing' | 'chunked' | 'vectorized';
+export type ChunkingMethod = 'recursive' | 'character' | 'token' | 'semantic';
+
+// Page interface for individual crawled pages
+export interface Page {
+  id: string;
+  website_id: string;
+  url: string;
+  title?: string;
+  content?: string;
+  raw_html?: string;
+  depth: number;
+  word_count: number;
+  link_count: number;
+  content_hash?: string;
+  scraping_status: PageStatus;
+  discovered_at?: Date;
+  scraped_at?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Chunk interface for text chunks with embeddings
+export interface Chunk {
+  id: string;
+  page_id: string;
+  content: string;
+  chunk_index: number;
+  start_position?: number;
+  end_position?: number;
+  word_count?: number;
+  chunking_method: ChunkingMethod;
+  embedding?: number[]; // Vector embedding
+  embedding_created_at?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
 
 export interface CreateWebsiteRequest {
   project_id: string;
@@ -26,7 +67,8 @@ export interface CreateWebsiteRequest {
   name?: string;
   description?: string;
   status?: WebsiteStatus;
-  indexing_status?: IndexingStatus;
+  max_pages?: number;
+  max_depth?: number;
 }
 
 export interface UpdateWebsiteRequest {
@@ -34,11 +76,9 @@ export interface UpdateWebsiteRequest {
   name?: string;
   description?: string;
   status?: WebsiteStatus;
-  indexing_status?: IndexingStatus;
-  indexed_at?: string;
-  indexing_error?: string;
-  content_chunks?: number;
-  last_crawled_at?: string;
+  crawl_status?: CrawlStatus;
+  max_pages?: number;
+  max_depth?: number;
 }
 
 export interface WebsiteStats {
@@ -46,6 +86,32 @@ export interface WebsiteStats {
   active_websites: number;
   inactive_websites: number;
   pending_review_websites: number;
+  crawling_websites: number;
+  completed_crawls: number;
+}
+
+// Crawl progress interface
+export interface CrawlProgress {
+  website_id: string;
+  project_id: string;
+  website_url: string;
+  website_name?: string;
+  crawl_status: CrawlStatus;
+  total_pages_discovered: number;
+  pages_crawled: number;
+  pages_failed: number;
+  max_pages: number;
+  max_depth: number;
+  started_at?: Date;
+  completed_at?: Date;
+  actual_pages_count: number;
+  pending_pages: number;
+  crawled_pages: number;
+  failed_pages: number;
+  processing_pages: number;
+  chunked_pages: number;
+  vectorized_pages: number;
+  crawl_progress_percent: number;
 }
 
 export class WebsiteService {
@@ -60,11 +126,14 @@ export class WebsiteService {
         name,
         description,
         status,
-        indexing_status,
-        indexed_at,
-        indexing_error,
-        content_chunks,
-        last_crawled_at,
+        crawl_status,
+        total_pages_discovered,
+        pages_crawled,
+        pages_failed,
+        max_pages,
+        max_depth,
+        started_at,
+        completed_at,
         created_date,
         updated_at
       FROM websites 
@@ -85,11 +154,14 @@ export class WebsiteService {
         name,
         description,
         status,
-        indexing_status,
-        indexed_at,
-        indexing_error,
-        content_chunks,
-        last_crawled_at,
+        crawl_status,
+        total_pages_discovered,
+        pages_crawled,
+        pages_failed,
+        max_pages,
+        max_depth,
+        started_at,
+        completed_at,
         created_date,
         updated_at
       FROM websites 
@@ -107,8 +179,16 @@ export class WebsiteService {
 
   async createWebsite(websiteData: CreateWebsiteRequest): Promise<Website> {
     const query = `
-      INSERT INTO websites (project_id, url, name, description, status, indexing_status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO websites (
+        project_id, 
+        url, 
+        name, 
+        description, 
+        status, 
+        max_pages, 
+        max_depth
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING 
         id,
         project_id,
@@ -116,11 +196,14 @@ export class WebsiteService {
         name,
         description,
         status,
-        indexing_status,
-        indexed_at,
-        indexing_error,
-        content_chunks,
-        last_crawled_at,
+        crawl_status,
+        total_pages_discovered,
+        pages_crawled,
+        pages_failed,
+        max_pages,
+        max_depth,
+        started_at,
+        completed_at,
         created_date,
         updated_at
     `;
@@ -131,7 +214,8 @@ export class WebsiteService {
       websiteData.name || null,
       websiteData.description || null,
       websiteData.status || 'active',
-      websiteData.indexing_status || 'not_indexed'
+      websiteData.max_pages || 30,
+      websiteData.max_depth || 3
     ];
     
     const result = await this.framework.executeQuery(query, values);
@@ -165,30 +249,20 @@ export class WebsiteService {
       setClauses.push(`status = $${paramIndex++}`);
       values.push(updateData.status);
     }
-    
-    if (updateData.indexing_status !== undefined) {
-      setClauses.push(`indexing_status = $${paramIndex++}`);
-      values.push(updateData.indexing_status);
+
+    if (updateData.crawl_status !== undefined) {
+      setClauses.push(`crawl_status = $${paramIndex++}`);
+      values.push(updateData.crawl_status);
     }
-    
-    if (updateData.indexed_at !== undefined) {
-      setClauses.push(`indexed_at = $${paramIndex++}`);
-      values.push(updateData.indexed_at);
+
+    if (updateData.max_pages !== undefined) {
+      setClauses.push(`max_pages = $${paramIndex++}`);
+      values.push(updateData.max_pages);
     }
-    
-    if (updateData.indexing_error !== undefined) {
-      setClauses.push(`indexing_error = $${paramIndex++}`);
-      values.push(updateData.indexing_error);
-    }
-    
-    if (updateData.content_chunks !== undefined) {
-      setClauses.push(`content_chunks = $${paramIndex++}`);
-      values.push(updateData.content_chunks);
-    }
-    
-    if (updateData.last_crawled_at !== undefined) {
-      setClauses.push(`last_crawled_at = $${paramIndex++}`);
-      values.push(updateData.last_crawled_at);
+
+    if (updateData.max_depth !== undefined) {
+      setClauses.push(`max_depth = $${paramIndex++}`);
+      values.push(updateData.max_depth);
     }
 
     if (setClauses.length === 0) {
@@ -209,11 +283,14 @@ export class WebsiteService {
         name,
         description,
         status,
-        indexing_status,
-        indexed_at,
-        indexing_error,
-        content_chunks,
-        last_crawled_at,
+        crawl_status,
+        total_pages_discovered,
+        pages_crawled,
+        pages_failed,
+        max_pages,
+        max_depth,
+        started_at,
+        completed_at,
         created_date,
         updated_at
     `;
@@ -242,6 +319,14 @@ export class WebsiteService {
         name,
         description,
         status,
+        crawl_status,
+        total_pages_discovered,
+        pages_crawled,
+        pages_failed,
+        max_pages,
+        max_depth,
+        started_at,
+        completed_at,
         created_date,
         updated_at
       FROM websites 
@@ -259,7 +344,9 @@ export class WebsiteService {
         COUNT(*) as total_websites,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_websites,
         COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_websites,
-        COUNT(CASE WHEN status = 'pending_review' THEN 1 END) as pending_review_websites
+        COUNT(CASE WHEN status = 'pending_review' THEN 1 END) as pending_review_websites,
+        COUNT(CASE WHEN crawl_status = 'crawling' THEN 1 END) as crawling_websites,
+        COUNT(CASE WHEN crawl_status = 'completed' THEN 1 END) as completed_crawls
       FROM websites
     `;
     
@@ -280,8 +367,87 @@ export class WebsiteService {
       total_websites: parseInt(row.total_websites),
       active_websites: parseInt(row.active_websites),
       inactive_websites: parseInt(row.inactive_websites),
-      pending_review_websites: parseInt(row.pending_review_websites)
+      pending_review_websites: parseInt(row.pending_review_websites),
+      crawling_websites: parseInt(row.crawling_websites),
+      completed_crawls: parseInt(row.completed_crawls)
     };
+  }
+
+  // New methods for crawling functionality
+
+  async getCrawlProgress(websiteId: string): Promise<CrawlProgress | null> {
+    const query = `
+      SELECT * FROM website_crawl_progress WHERE website_id = $1
+    `;
+    
+    const result = await this.framework.executeQuery(query, [websiteId]);
+    
+    if (!result.rows || result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      website_id: row.website_id,
+      project_id: row.project_id,
+      website_url: row.website_url,
+      website_name: row.website_name,
+      crawl_status: row.crawl_status,
+      total_pages_discovered: parseInt(row.total_pages_discovered || '0'),
+      pages_crawled: parseInt(row.pages_crawled || '0'),
+      pages_failed: parseInt(row.pages_failed || '0'),
+      max_pages: parseInt(row.max_pages || '30'),
+      max_depth: parseInt(row.max_depth || '3'),
+      started_at: row.started_at ? new Date(row.started_at) : undefined,
+      completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
+      actual_pages_count: parseInt(row.actual_pages_count || '0'),
+      pending_pages: parseInt(row.pending_pages || '0'),
+      crawled_pages: parseInt(row.crawled_pages || '0'),
+      failed_pages: parseInt(row.failed_pages || '0'),
+      processing_pages: parseInt(row.processing_pages || '0'),
+      chunked_pages: parseInt(row.chunked_pages || '0'),
+      vectorized_pages: parseInt(row.vectorized_pages || '0'),
+      crawl_progress_percent: parseFloat(row.crawl_progress_percent || '0')
+    };
+  }
+
+  async updateCrawlStatus(websiteId: string, status: CrawlStatus, stats?: {
+    total_pages_discovered?: number;
+    pages_crawled?: number;
+    pages_failed?: number;
+  }): Promise<void> {
+    const setClauses = ['crawl_status = $2'];
+    const values: (string | number)[] = [websiteId, status];
+    let paramIndex = 3;
+
+    if (stats?.total_pages_discovered !== undefined) {
+      setClauses.push(`total_pages_discovered = $${paramIndex++}`);
+      values.push(stats.total_pages_discovered);
+    }
+
+    if (stats?.pages_crawled !== undefined) {
+      setClauses.push(`pages_crawled = $${paramIndex++}`);
+      values.push(stats.pages_crawled);
+    }
+
+    if (stats?.pages_failed !== undefined) {
+      setClauses.push(`pages_failed = $${paramIndex++}`);
+      values.push(stats.pages_failed);
+    }
+
+    if (status === 'crawling') {
+      setClauses.push(`started_at = CURRENT_TIMESTAMP`);
+    } else if (status === 'completed' || status === 'failed') {
+      setClauses.push(`completed_at = CURRENT_TIMESTAMP`);
+    }
+
+    const query = `
+      UPDATE websites 
+      SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `;
+
+    await this.framework.executeQuery(query, values);
   }
 
   async validateWebsiteUrl(url: string): Promise<boolean> {
@@ -318,11 +484,14 @@ export class WebsiteService {
       name: row.name,
       description: row.description,
       status: row.status as WebsiteStatus,
-      indexing_status: row.indexing_status as IndexingStatus,
-      indexed_at: row.indexed_at,
-      indexing_error: row.indexing_error,
-      content_chunks: row.content_chunks || 0,
-      last_crawled_at: row.last_crawled_at,
+      crawl_status: row.crawl_status as CrawlStatus,
+      total_pages_discovered: parseInt(row.total_pages_discovered || '0'),
+      pages_crawled: parseInt(row.pages_crawled || '0'),
+      pages_failed: parseInt(row.pages_failed || '0'),
+      max_pages: parseInt(row.max_pages || '30'),
+      max_depth: parseInt(row.max_depth || '3'),
+      started_at: row.started_at ? new Date(row.started_at) : undefined,
+      completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
       created_date: new Date(row.created_date),
       updated_at: new Date(row.updated_at)
     };

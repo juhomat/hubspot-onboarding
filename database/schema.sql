@@ -56,9 +56,6 @@ CREATE TRIGGER update_projects_updated_at
 -- Create ENUM type for website status
 CREATE TYPE website_status AS ENUM ('active', 'inactive', 'pending_review');
 
--- Create ENUM type for indexing status
-CREATE TYPE indexing_status AS ENUM ('not_indexed', 'indexing', 'indexed', 'failed');
-
 -- Create Websites table
 CREATE TABLE IF NOT EXISTS websites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,11 +64,6 @@ CREATE TABLE IF NOT EXISTS websites (
   name VARCHAR(255),
   description TEXT,
   status website_status DEFAULT 'active',
-  indexing_status indexing_status DEFAULT 'not_indexed',
-  indexed_at TIMESTAMP WITH TIME ZONE,
-  indexing_error TEXT,
-  content_chunks INTEGER DEFAULT 0,
-  last_crawled_at TIMESTAMP WITH TIME ZONE,
   created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   
