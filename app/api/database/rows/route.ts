@@ -83,4 +83,60 @@ export async function GET(request: NextRequest) {
       await pool.end();
     }
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { database, table, whereClause, whereValues } = body;
+
+    if (!database || !table || !whereClause) {
+      return NextResponse.json({
+        success: false,
+        error: 'Database, table, and whereClause parameters are required'
+      }, { status: 400 });
+    }
+
+    let pool: Pool | null = null;
+    
+    try {
+      const config = getDatabaseConfig();
+      
+      // Connect to the specified database
+      pool = new Pool({
+        host: config.host,
+        port: config.port,
+        database: database,
+        user: config.username,
+        password: config.password,
+        ssl: config.ssl ? { rejectUnauthorized: false } : false,
+      });
+
+      // Delete the row(s) based on the WHERE clause
+      const deleteQuery = `DELETE FROM "${table}" WHERE ${whereClause};`;
+      const result = await pool.query(deleteQuery, whereValues || []);
+
+      return NextResponse.json({
+        success: true,
+        message: `${result.rowCount} row(s) deleted successfully`,
+        deletedCount: result.rowCount
+      });
+
+    } catch (error) {
+      console.error('Row deletion error:', error);
+      return NextResponse.json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
+    } finally {
+      if (pool) {
+        await pool.end();
+      }
+    }
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: 'Invalid JSON in request body'
+    }, { status: 400 });
+  }
 } 

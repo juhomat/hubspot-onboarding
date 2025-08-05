@@ -36,6 +36,8 @@ export default function TableDataPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{rowIndex: number, row: Record<string, any>} | null>(null);
 
   useEffect(() => {
     if (database && table) {
@@ -61,6 +63,66 @@ export default function TableDataPage() {
       setError(err instanceof Error ? err.message : 'Network error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateWhereClause = (row: Record<string, any>, columns: Column[]) => {
+    const conditions: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    // Generate WHERE clause using all non-null columns
+    columns.forEach((column) => {
+      const value = row[column.column_name];
+      if (value !== null && value !== undefined) {
+        conditions.push(`"${column.column_name}" = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      } else {
+        conditions.push(`"${column.column_name}" IS NULL`);
+      }
+    });
+    
+    return {
+      whereClause: conditions.join(' AND '),
+      whereValues: values
+    };
+  };
+
+  const handleDelete = async (rowIndex: number, row: Record<string, any>) => {
+    if (!tableData) return;
+    
+    try {
+      setDeleteLoading(rowIndex);
+      
+      const { whereClause, whereValues } = generateWhereClause(row, tableData.columns);
+      
+      const response = await fetch('/api/database/rows', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          database,
+          table,
+          whereClause,
+          whereValues
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh the table data to show updated results
+        await fetchTableData();
+        setDeleteConfirm(null);
+      } else {
+        setError(result.error || 'Failed to delete row');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -247,6 +309,9 @@ export default function TableDataPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                    Actions
+                  </th>
                   {tableData.columns.map((column) => (
                     <th
                       key={column.column_name}
@@ -266,6 +331,22 @@ export default function TableDataPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {tableData.rows.map((row, rowIndex) => (
                   <tr key={rowIndex} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => setDeleteConfirm({rowIndex, row})}
+                        disabled={deleteLoading === rowIndex}
+                        className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                        title="Delete row"
+                      >
+                        {deleteLoading === rowIndex ? (
+                          <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                      </button>
+                    </td>
                     {tableData.columns.map((column) => (
                       <td
                         key={column.column_name}
@@ -322,6 +403,50 @@ export default function TableDataPage() {
               >
                 Last
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.99-.833-2.76 0L4.054 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div className="mt-2 px-7 py-3">
+                  <h3 className="text-lg font-medium text-gray-900">Delete Row</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Are you sure you want to delete this row? This action cannot be undone.
+                  </p>
+                  <div className="mt-3 max-h-48 overflow-y-auto">
+                    <div className="text-xs bg-gray-50 p-2 rounded border">
+                      <strong>Row data:</strong>
+                      <pre className="mt-1 whitespace-pre-wrap">
+                        {JSON.stringify(deleteConfirm.row, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 px-4 py-3">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    className="px-4 py-2 bg-white text-gray-500 border border-gray-300 rounded-md hover:bg-gray-50 flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDelete(deleteConfirm.rowIndex, deleteConfirm.row)}
+                    disabled={deleteLoading === deleteConfirm.rowIndex}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex-1"
+                  >
+                    {deleteLoading === deleteConfirm.rowIndex ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

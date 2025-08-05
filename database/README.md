@@ -69,64 +69,6 @@ npm run db:setup
 | `description` | TEXT | Project description |
 | `updated_at` | TIMESTAMP | Auto-updated modification timestamp |
 
-### Websites Table (Enhanced)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key (auto-generated) |
-| `project_id` | UUID | Foreign key to projects table |
-| `url` | VARCHAR(2048) | Website URL |
-| `name` | VARCHAR(255) | Optional website name |
-| `description` | TEXT | Website description |
-| `status` | ENUM | Website status (active/inactive/pending_review) |
-| `crawl_status` | ENUM | Crawling status (pending/crawling/completed/failed/paused) |
-| `total_pages_discovered` | INTEGER | Total pages found during discovery |
-| `pages_crawled` | INTEGER | Successfully crawled pages |
-| `pages_failed` | INTEGER | Failed crawl attempts |
-| `max_pages` | INTEGER | Maximum pages to crawl (default: 30) |
-| `max_depth` | INTEGER | Maximum crawl depth (default: 3) |
-| `started_at` | TIMESTAMP | Crawl start time |
-| `completed_at` | TIMESTAMP | Crawl completion time |
-| `created_date` | TIMESTAMP | Record creation timestamp |
-| `updated_at` | TIMESTAMP | Last update timestamp |
-
-### Pages Table
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key (auto-generated) |
-| `website_id` | UUID | Foreign key to websites table |
-| `url` | VARCHAR(2048) | Page URL |
-| `title` | VARCHAR(500) | Page title |
-| `content` | TEXT | Clean extracted text content |
-| `raw_html` | TEXT | Original HTML content |
-| `depth` | INTEGER | Crawl depth from starting URL |
-| `word_count` | INTEGER | Number of words in content |
-| `link_count` | INTEGER | Number of links found on page |
-| `content_hash` | VARCHAR(64) | SHA256 hash for duplicate detection |
-| `scraping_status` | ENUM | Processing status |
-| `discovered_at` | TIMESTAMP | When page was discovered |
-| `scraped_at` | TIMESTAMP | When page was scraped |
-| `created_at` | TIMESTAMP | Record creation timestamp |
-| `updated_at` | TIMESTAMP | Last update timestamp |
-
-### Chunks Table
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key (auto-generated) |
-| `page_id` | UUID | Foreign key to pages table |
-| `content` | TEXT | Text chunk content |
-| `chunk_index` | INTEGER | Index within page |
-| `start_position` | INTEGER | Start position in original content |
-| `end_position` | INTEGER | End position in original content |
-| `word_count` | INTEGER | Number of words in chunk |
-| `chunking_method` | ENUM | Method used for chunking |
-| `embedding` | VECTOR(1536) | OpenAI vector embedding |
-| `embedding_created_at` | TIMESTAMP | When embedding was generated |
-| `created_at` | TIMESTAMP | Record creation timestamp |
-| `updated_at` | TIMESTAMP | Last update timestamp |
-
 ### Enums
 
 **Project Status:**
@@ -135,32 +77,6 @@ npm run db:setup
 - `completed` - Successfully finished
 - `on_hold` - Temporarily paused
 - `cancelled` - Cancelled project
-
-**Website Status:**
-- `active` - Website is active and available for crawling
-- `inactive` - Website is not active
-- `pending_review` - Website awaiting review
-
-**Crawl Status:**
-- `pending` - Crawl not yet started
-- `crawling` - Currently crawling in progress
-- `completed` - Crawl completed successfully
-- `failed` - Crawl failed
-- `paused` - Crawl temporarily paused
-
-**Page Status:**
-- `pending` - Page discovered but not yet crawled
-- `crawled` - Page successfully crawled
-- `failed` - Page crawling failed
-- `processing` - Page content being processed
-- `chunked` - Page content split into chunks
-- `vectorized` - Page chunks have vector embeddings
-
-**Chunking Method:**
-- `recursive` - Recursive text splitting (default)
-- `character` - Fixed character length chunks
-- `token` - Token-based chunking
-- `semantic` - Semantic-aware chunking
 
 **HubSpot Hubs:**
 - `marketing_hub` - Marketing automation
@@ -179,23 +95,6 @@ npm run db:setup
 | GET | `/api/projects/[id]` | Get project by ID |
 | PUT | `/api/projects/[id]` | Update project |
 | DELETE | `/api/projects/[id]` | Delete project |
-
-### Websites
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/projects/[id]/websites` | Get websites for project |
-| POST | `/api/projects/[id]/websites` | Add website to project |
-| GET | `/api/projects/[id]/websites/[websiteId]` | Get website details |
-| PUT | `/api/projects/[id]/websites/[websiteId]` | Update website |
-| DELETE | `/api/projects/[id]/websites/[websiteId]` | Delete website |
-
-### Website Crawling (Coming Next)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/projects/[id]/websites/[websiteId]/crawl` | Start website crawling |
-| GET | `/api/projects/[id]/websites/[websiteId]/crawl` | Get crawl progress |
-| GET | `/api/projects/[id]/websites/[websiteId]/pages` | Get crawled pages |
-| GET | `/api/projects/[id]/websites/[websiteId]/chunks` | Get content chunks |
 
 ## 🚀 Heroku Deployment
 

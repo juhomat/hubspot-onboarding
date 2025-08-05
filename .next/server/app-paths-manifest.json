@@ -1,5 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/projects/[id]/page": "app/projects/[id]/page.js"
+  "/api/database/tables/route": "app/api/database/tables/route.js",
+  "/api/database/rows/route": "app/api/database/rows/route.js",
+  "/database/page": "app/database/page.js",
+  "/database/[database]/page": "app/database/[database]/page.js",
+  "/database/[database]/[table]/page": "app/database/[database]/[table]/page.js"
 }

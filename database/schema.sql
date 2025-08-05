@@ -53,35 +53,6 @@ CREATE TRIGGER update_projects_updated_at
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
--- Create ENUM type for website status
-CREATE TYPE website_status AS ENUM ('active', 'inactive', 'pending_review');
-
--- Create Websites table
-CREATE TABLE IF NOT EXISTS websites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL,
-  url VARCHAR(2048) NOT NULL,
-  name VARCHAR(255),
-  description TEXT,
-  status website_status DEFAULT 'active',
-  created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  
-  CONSTRAINT fk_websites_project 
-    FOREIGN KEY (project_id) 
-    REFERENCES projects(id) 
-    ON DELETE CASCADE,
-  
-  CONSTRAINT websites_url_not_empty CHECK (LENGTH(TRIM(url)) > 0),
-  CONSTRAINT websites_url_format CHECK (
-    url ~* '^https?://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(/.*)?$'
-  ),
-  CONSTRAINT websites_name_length CHECK (
-    name IS NULL OR LENGTH(TRIM(name)) > 0
-  ),
-  CONSTRAINT unique_website_per_project UNIQUE (project_id, url)
-);
-
 -- Insert sample data
 -- Insert sample data with proper dates
 INSERT INTO projects (name, customer, project_start_date, project_owner, hubspot_hubs, status, description, created_date) VALUES

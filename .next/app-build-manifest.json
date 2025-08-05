@@ -16,30 +16,35 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/projects/route.js"
     ],
-    "/projects/[id]/page": [
+    "/database/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/projects/[id]/page.js"
+      "static/chunks/app/database/page.js"
     ],
-    "/api/projects/[id]/route": [
+    "/api/database/databases/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/projects/[id]/route.js"
+      "static/chunks/app/api/database/databases/route.js"
     ],
-    "/api/projects/[id]/websites/route": [
+    "/database/[database]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/projects/[id]/websites/route.js"
+      "static/chunks/app/database/[database]/page.js"
     ],
-    "/api/projects/[id]/websites/[websiteId]/route": [
+    "/api/database/tables/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/projects/[id]/websites/[websiteId]/route.js"
+      "static/chunks/app/api/database/tables/route.js"
     ],
-    "/_not-found/page": [
+    "/database/[database]/[table]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/database/[database]/[table]/page.js"
+    ],
+    "/api/database/rows/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/database/rows/route.js"
     ]
   }
 }
