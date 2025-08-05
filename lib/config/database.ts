@@ -1,5 +1,4 @@
 import { ApplicationFramework } from '@juhomat/hexagonal-ai-framework';
-import { FrameworkConfigBuilder } from '@juhomat/hexagonal-ai-framework';
 
 // Load environment variables
 if (typeof window === 'undefined') {
@@ -46,15 +45,8 @@ export function getDatabaseConfig() {
  * Create and initialize the ApplicationFramework with database configuration
  */
 export async function createFramework(): Promise<ApplicationFramework> {
-  const env = process.env.NODE_ENV === 'production' ? 'production' : 'development';
-  
-  const config = new FrameworkConfigBuilder()
-    .environment(env)
-    .debug(process.env.NODE_ENV !== 'production')
-    .database(getDatabaseConfig())
-    .build();
-
-  const framework = new ApplicationFramework(config);
+  // Based on the framework documentation, instantiate without config builder
+  const framework = new ApplicationFramework();
   await framework.initialize();
   
   return framework;
